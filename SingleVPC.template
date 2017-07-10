@@ -1,0 +1,297 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Cloud Formation stack to create Single VPC",
+    "Parameters"               : {
+        "CustomerPrefix" : {
+            "Type" : "String",
+            "Default" : "testcust",
+            "Description" : "Enter Customer Prefix"
+        },
+        "Region"         : {
+            "Type" : "String",
+            "Default" : "us-east-1",
+            "Description" : "Region in which VPC will be launched",
+            "AllowedValues" : [
+                "eu-central-1",
+                "eu-west-1",
+                "eu-west-2",
+                "us-east-1",
+                "us-west-1"
+            ]
+        },
+        "Environment"    : {
+            "Type" : "String",
+            "Default" : "dt",
+            "Description" : "Enter Environment (Input Format - d=development, t=test, a=acceptance, p=production, dt=devtest, ap=acceptanceproduction)",
+            "AllowedValues" : [
+                "d",
+                "t",
+                "a",
+                "p",
+                "dt",
+                "ap"
+            ]
+        },
+		"CIDR"           : {
+            "Type" : "String",
+            "Default" : "10.1.0.0/16",
+            "Description" : "Enter CIDR for this Subnet"
+        }
+    },
+    "Mappings"                 : {
+    },
+    "Resources"                : {
+        "EnvironmentVPC" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : {
+                    "Ref" : "CIDR"
+                },
+                "InstanceTenancy" : "default",
+                "EnableDnsSupport" : "true",
+                "EnableDnsHostnames" : "false",
+                "Tags"               : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "-vpc"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "InternetGateway" : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "-igw"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "AttachGateway"   : {
+            "Type" : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "EnvironmentVPC"
+                },
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "DHCPSetup"       : {
+            "Type" : "AWS::EC2::DHCPOptions",
+            "Properties" : {
+                "DomainName" : "ec2.internal",
+                "DomainNameServers" : [
+                    "AmazonProvidedDNS"
+                ],
+                "Tags"              : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "-route"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "RouteTable"      : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "EnvironmentVPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "-route"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "Route"           : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : "AttachGateway",
+            "Properties" : {
+                "RouteTableId" : {
+                    "Ref" : "RouteTable"
+                },
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "NetworkAcl"      : {
+            "Type" : "AWS::EC2::NetworkAcl",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "EnvironmentVPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "-nacl"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "InboundSSHNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                },
+                "RuleNumber"   : "100",
+                "Protocol"     : "6",
+                "RuleAction"   : "allow",
+                "Egress"       : "false",
+                "CidrBlock"    : "0.0.0.0/0",
+                "PortRange"    : {
+                    "From" : "22",
+                    "To"   : "22"
+                }
+            }
+        },
+        "InboundHTTPNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                },
+                "RuleNumber"   : "101",
+                "Protocol"     : "6",
+                "RuleAction"   : "allow",
+                "Egress"       : "false",
+                "CidrBlock"    : "0.0.0.0/0",
+                "PortRange"    : {
+                    "From" : "80",
+                    "To"   : "80"
+                }
+            }
+        },
+        "InboundHTTPSNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                },
+                "RuleNumber"   : "102",
+                "Protocol"     : "6",
+                "RuleAction"   : "allow",
+                "Egress"       : "false",
+                "CidrBlock"    : "0.0.0.0/0",
+                "PortRange"    : {
+                    "From" : "443",
+                    "To"   : "443"
+                }
+            }
+        },
+        "InboundRDPNetworkAclEntry"   : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                },
+                "RuleNumber"   : "103",
+                "Protocol"     : "6",
+                "RuleAction"   : "allow",
+                "Egress"       : "false",
+                "CidrBlock"    : "0.0.0.0/0",
+                "PortRange"    : {
+                    "From" : "3389",
+                    "To"   : "3389"
+                }
+            }
+        },
+        "OutBoundResponsePortsNetworkAclEntry" : {
+            "Type" : "AWS::EC2::NetworkAclEntry",
+            "Properties" : {
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                },
+                "RuleNumber"   : "100",
+                "Protocol"     : "6",
+                "RuleAction"   : "allow",
+                "Egress"       : "true",
+                "CidrBlock"    : "0.0.0.0/0",
+                "PortRange"    : {
+                    "From" : "0",
+                    "To"   : "65535"
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+    }
+}

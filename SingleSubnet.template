@@ -1,0 +1,225 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Cloud Formation stack to create Single Subnet",
+    "Parameters"               : {
+        "CustomerPrefix" : {
+            "Type" : "String",
+            "Default" : "testcust",
+            "Description" : "Enter Customer Prefix"
+        },
+        "Region"         : {
+            "Type" : "String",
+            "Default" : "us-east-1",
+            "Description" : "Region in which VPC will be launched",
+            "AllowedValues" : [
+                "eu-central-1",
+                "eu-west-1",
+                "eu-west-2",
+                "us-east-1",
+                "us-west-1"
+            ]
+        },
+        "Environment"    : {
+            "Type" : "String",
+            "Default" : "dt",
+            "Description" : "Enter Environment (Input Format - d=development, t=test, a=acceptance, p=production, dt=devtest, ap=acceptanceproduction)",
+            "AllowedValues" : [
+                "d",
+                "t",
+                "a",
+                "p",
+                "dt",
+                "ap"
+            ]
+        },
+        "AZ"             : {
+            "Type" : "String",
+            "Default" : "a",
+            "Description" : "Enter AZ (a,b,c,d,e)",
+            "AllowedValues" : [
+                "a",
+                "b",
+                "c",
+                "d",
+                "e"
+            ]
+        },
+        "Zone"           : {
+            "Type" : "String",
+            "Default" : "ID",
+            "Description" : "Enter Zone (Input Format - I=Internal, E=External, PE=Public Edge, M=Management, ED=External Dev, External Test, ID=Internal Dev, IT=Internal Test, EA=External Acceptance, EP=External Production, IA=Internal Acceptance, IP=Internal Production)",
+            "AllowedValues" : [
+                "I",
+                "E",
+                "PE",
+                "M",
+                "ED",
+                "ET",
+                "ID",
+                "IT",
+                "EA",
+                "EP",
+                "IA",
+                "IP"
+            ]
+        },
+        "VPCID"          : {
+            "Type" : "String",
+            "Default" : "default",
+            "Description" : "Enter VPCID to connect Subnet to"
+        },
+        "CIDR"           : {
+            "Type" : "String",
+            "Default" : "10.1.0.0/24",
+            "Description" : "Enter CIDR for this Subnet"
+        }
+    },
+    "Mappings"                 : {
+    },
+    "Resources"                : {
+        "Subnet" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPCID"
+                },
+                "CidrBlock" : {
+                    "Ref" : "CIDR"
+                },
+                "Tags"      : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Region"
+                                    },
+                                    {
+                                        "Ref" : "AZ"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Zone"
+                                    },
+                                    "-subnet"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "SubnetRouteTable" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPCID"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Region"
+                                    },
+                                    {
+                                        "Ref" : "AZ"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Zone"
+                                    },
+                                    "-route"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "SubnetRouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "Subnet"
+                },
+                "RouteTableId" : {
+                    "Ref" : "SubnetRouteTable"
+                }
+            }
+        },
+        "NetworkAcl"                  : {
+            "Type" : "AWS::EC2::NetworkAcl",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPCID"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "CustomerPrefix"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Environment"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Region"
+                                    },
+                                    {
+                                        "Ref" : "AZ"
+                                    },
+                                    "_",
+                                    {
+                                        "Ref" : "Zone"
+                                    },
+                                    "-nacl"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "SubnetNetworkAclAssociation" : {
+            "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "Subnet"
+                },
+                "NetworkAclId" : {
+                    "Ref" : "NetworkAcl"
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+    }
+}
